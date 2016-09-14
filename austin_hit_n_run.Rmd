@@ -1,0 +1,253 @@
+# Austin's top two Crimes: hit and run, and DWI.
+
+This is a look at the freely available apd statistics data available on data.austintexas.gov. 
+
+## Load and clean data.
+
+I load the data and plot it.   There is a datapoint set to zero which I will remove.
+
+
+
+```{r}
+apd <- read.csv("~/Data/APD_Incident_Extract_YTD.csv")
+plot(apd$LONGITUDE, apd$LATITUDE)
+```
+
+
+## Remove the Bad Data and Plot again.
+
+Here, I've removed the bad data and replotted.   Points are colored according to crime type. I want to see if certain crimes occur at certain times of the day in certain areas. This looks like an anamorphic chile pepper with its arm stretched out holding a bow and about to shoot an arrow! 
+```{r}
+apd<-apd[apd$LONGITUDE < -80,]
+plot(apd$LONGITUDE, apd$LATITUDE, col=as.numeric(apd$Crime.Type), cex=.2)
+library(hexbin)
+
+plot(hexbin(apd$LONGITUDE, apd$LATITUDE, xbins=50))
+```
+
+## 3D ... long X lat X time
+
+ Viewed with time.   Crime thins out in the morning and picks back up in the evening.  
+
+```{r}
+library(scatterplot3d)
+scatterplot3d(apd$LONGITUDE, apd$LATITUDE, as.numeric(apd$Time), color=as.numeric(apd$Crime.Type), cex.symbols = .2)
+```
+
+
+## Most Common Cime Types
+
+By far, the most common crime in Austin is CRASH/LEAVING THE SCENE or also known as 'Hit and Run'.   The next most common crime is "DWI". 
+
+```{r}
+head(sort(table(apd$Crime.Type), decreasing = TRUE), n=20)
+barplot(table(apd$Crime.Type))
+```
+
+# Only look at CRASH/LEAVING THE SCENE
+
+Here, I use dplyr library to filter the dataframe.
+
+```{r}
+library(dplyr)
+both<-filter(apd, Crime.Type == "CRASH/LEAVING THE SCENE" | Crime.Type == "DWI" | Crime.Type == "DWI 2ND" | Crime.Type == "DWI .15 BAC OR ABOVE" | Crime.Type == "DWI - DRUG RECOGNITION EXPERT" | Crime.Type == "CRASH/INTOXICATION ASSAULT" | Crime.Type == "PUBLIC INTOXICATION"  | Crime.Type == "DRIVING WHILE INTOX / FELON" | Crime.Type == "DUI - AGE 17 TO 20")
+dwi<-filter(apd, Crime.Type == "DWI" | Crime.Type == "DWI 2ND" | Crime.Type == "DWI .15 BAC OR ABOVE" | Crime.Type == "DWI - DRUG RECOGNITION EXPERT" | Crime.Type == "CRASH/INTOXICATION ASSAULT" | Crime.Type == "PUBLIC INTOXICATION"  | Crime.Type == "DRIVING WHILE INTOX / FELON" | Crime.Type == "DUI - AGE 17 TO 20")
+crash<-filter(apd, Crime.Type == "CRASH/LEAVING THE SCENE")
+
+rbpal<-colorRampPalette(c('lightgrey','black'))
+both$Col <- rbpal(10)[as.numeric(cut(as.numeric(both$Time),breaks = 10))]
+crash$Col <- rbpal(10)[as.numeric(cut(as.numeric(crash$Time),breaks = 10))]
+dwi$Col <- rbpal(10)[as.numeric(cut(as.numeric(dwi$Time),breaks = 10))]
+```
+
+# Hit and run only 
+
+By connecting the points, you can establish a patrol route to look specifically for hit and run occurrances.  The color represents time where the color changes at midnight from blue to red.  Generally, hit and runs occur throughout the day.
+
+```{r}
+plot(crash$LONGITUDE, crash$LATITUDE, col=crash$Col, cex=3, pch=20)
+points(crash$LONGITUDE, crash$LATITUDE, col='red', cex=.5, pch=20)
+```
+
+What days of the week
+
+```{r}
+
+plot(crash$LONGITUDE, crash$LATITUDE, col=crash$Col, cex=3, pch=20)
+points(crash$LONGITUDE, crash$LATITUDE, col=as.factor(weekdays(as.Date(crash$Date))), cex=1, pch=20)
+```
+
+# DWI only
+
+Again, you can connect the dots to make patrol routes to look specifically for DWI, but this time, you can see the the time is more blue with bright red and bright blue. This would mean the switch to midnight.
+
+```{r}
+plot(dwi$LONGITUDE, dwi$LATITUDE, col=dwi$Col, cex=3, pch=20)
+points(dwi$LONGITUDE, dwi$LATITUDE, col='blue', cex=.5, pch=20)
+```
+
+What days of the week
+
+```{r}
+
+plot(dwi$LONGITUDE, dwi$LATITUDE, col=dwi$Col, cex=3, pch=20)
+points(dwi$LONGITUDE, dwi$LATITUDE, cex=1, pch=20, col=as.factor(weekdays(as.Date(strptime(dwi$Date, "%m/%d/%Y")))))
+```
+
+
+# Both together
+
+```{r}
+
+scatter.smooth(both$LONGITUDE, both$LATITUDE, col=both$Col, pch=20, cex=3)
+points(crash$LONGITUDE, crash$LATITUDE, col='red', pch=20, cex=.5)
+points(dwi$LONGITUDE, dwi$LATITUDE, col='blue', pch=20, cex=.5)
+```
+
+## plot with time
+
+```{r}
+scatterplot3d(both$LONGITUDE, both$LATITUDE, as.numeric(both$Time), color = as.numeric(both$Crime.Type), pch = 20)
+
+```
+
+## Common addresses for CRASH/LEAVING THE SCENE
+
+```{r}
+head(sort(table(crash$ADDRESS), decreasing = TRUE), n=20)
+```
+
+## Common times for CRASH/LEAVING THE SCENE
+
+```{r}
+head(sort(table(crash$Time), decreasing = TRUE), n=20)
+```
+
+## Common Addresses for DWI
+
+```{r}
+head(sort(table(dwi$ADDRESS), decreasing = TRUE), n=20)
+```
+
+## Common times for DWI
+
+```{r}
+head(sort(table(dwi$Time), decreasing = TRUE), n=20)
+```
+
+
+# Time and Longitude
+
+## Looking at Time and Longitude only
+
+
+```{r}
+rbpal<-colorRampPalette(c('lightgrey','black'))
+both$Col <- rbpal(10)[as.numeric(cut(as.numeric(both$LATITUDE),breaks = 10))]
+scatter.smooth(both$LONGITUDE, both$Time, col=both$Col, cex=4, pch=20)
+abline(lm(both$Time ~ both$LONGITUDE), col='blue', lwd=3)
+points(crash$LONGITUDE, crash$Time, pch = 5, col='red', cex=.3)
+abline(lm(crash$Time ~ crash$LONGITUDE), col='red', lwd=3)
+points(dwi$LONGITUDE, dwi$Time, pch = 4, col='green', cex=.3)
+abline(lm(dwi$Time ~ dwi$LONGITUDE), col='green', lwd=3)
+```
+
+
+# Time and Latitude
+
+
+```{r}
+rbpal<-colorRampPalette(c('lightgrey','black'))
+both$Col <- rbpal(10)[as.numeric(cut(as.numeric(both$LONGITUDE),breaks = 10))]
+scatter.smooth(both$LATITUDE, both$Time, col=both$Col, cex=4, pch=20)
+abline(lm(both$Time ~ both$LATITUDE), col='blue', lwd=3)
+points(crash$LATITUDE, crash$Time, pch = 5, col='red', cex=.3)
+abline(lm(crash$Time ~ crash$LATITUDE), col='red', lwd=3)
+points(dwi$LATITUDE, dwi$Time, pch = 4, col='green', cex=.3)
+abline(lm(dwi$Time ~ dwi$LATITUDE), col='green', lwd=3)
+```
+
+
+# Divide the day into six sections.
+
+```{r}
+rbpal<-colorRampPalette(c('grey','black'))
+
+one<-both[both$Time >= 0 & both$Time < 400,]
+one$Col <- rbpal(10)[as.numeric(cut(as.numeric(one$Time),breaks = 4))]
+two<-both[both$Time >= 400 & both$Time < 800,]
+two$Col <- rbpal(10)[as.numeric(cut(as.numeric(two$Time),breaks = 4))]
+three<-both[both$Time >= 800 & both$Time < 1200,]
+three$Col <- rbpal(10)[as.numeric(cut(as.numeric(three$Time),breaks = 4))]
+four<-both[both$Time >= 1200 & both$Time < 1600,]
+four$Col <- rbpal(10)[as.numeric(cut(as.numeric(four$Time),breaks = 4))]
+five<-both[both$Time >= 1600 & both$Time < 2000,]
+five$Col <- rbpal(10)[as.numeric(cut(as.numeric(five$Time),breaks = 4))]
+six<-both[both$Time >= 2000 & both$Time < 2500,]
+six$Col <- rbpal(10)[as.numeric(cut(as.numeric(six$Time),breaks = 4))]
+
+```
+
+# calclulate average per shift
+
+```{r}
+x<-c(nrow(one), nrow(two), nrow(three),nrow(four),nrow(five),nrow(six))
+barplot(x)
+print(x)
+
+```
+
+# Crime Type, Location, and Time
+
+```{r}
+rbpal<-colorRampPalette(c('grey','black'))
+apd$Col <- rbpal(10)[as.numeric(cut(as.numeric(apd$Time),breaks = 15))]
+
+both$Col <- rbpal(10)[as.numeric(cut(as.numeric(both$Time),breaks = 15))]
+scatterplot3d(both$LONGITUDE,both$LATITUDE,as.numeric(both$Crime.Type), color = both$Col, cex.symbols = .4)
+```
+
+# day of week
+
+```{r}
+
+scatterplot3d(both$LONGITUDE,both$LATITUDE,as.numeric(both$Time), color =as.numeric(as.factor(weekdays(as.Date(strptime(both$Date, "%m/%d/%Y"))))), cex.symbols = .4)
+```
+
+# Plot each shift separately 
+
+
+```{r}
+
+scatter.smooth(one$LONGITUDE, one$LATITUDE, col=one$Col, cex=3, pch=20)
+points(one$LONGITUDE, one$LATITUDE, col=as.numeric(one$Crime.Type)+1, cex=1, pch=20)
+#points(one$LONGITUDE, one$LATITUDE,col=as.numeric(as.factor(weekdays(as.Date(strptime(one$Date, "%m/%d/%Y"))))), cex=1)
+nrow(one)
+
+scatter.smooth(two$LONGITUDE, two$LATITUDE, col=two$Col, cex=3, pch=20)
+points(two$LONGITUDE, two$LATITUDE, col=as.numeric(two$Crime.Type)+1, cex=1, pch=20)
+#points(two$LONGITUDE, two$LATITUDE,col=as.numeric(as.factor(weekdays(as.Date(strptime(two$Date, "%m/%d/%Y"))))), cex=1)
+nrow(two)
+
+scatter.smooth(three$LONGITUDE, three$LATITUDE, col=three$Col, cex=3, pch=20)
+points(three$LONGITUDE, three$LATITUDE, col=as.numeric(three$Crime.Type)+1, cex=1, pch=20)
+#points(three$LONGITUDE, three$LATITUDE,col=as.numeric(as.factor(weekdays(as.Date(strptime(three$Date, "%m/%d/%Y"))))), cex=1)
+nrow(three)
+
+scatter.smooth(four$LONGITUDE, four$LATITUDE, col=four$Col, cex=3, pch=20)
+points(four$LONGITUDE, four$LATITUDE, col=as.numeric(four$Crime.Type)+1, cex=1, pch=20)
+#points(four$LONGITUDE, four$LATITUDE,col=as.numeric(as.factor(weekdays(as.Date(strptime(four$Date, "%m/%d/%Y"))))), cex=1)
+nrow(four)
+
+scatter.smooth(five$LONGITUDE, five$LATITUDE, col=five$Col, cex=3, pch=20)
+points(five$LONGITUDE, five$LATITUDE, col=as.numeric(five$Crime.Type)+1, cex=1, pch=20)
+#points(five$LONGITUDE, five$LATITUDE,col=as.numeric(as.factor(weekdays(as.Date(strptime(five$Date, "%m/%d/%Y"))))), cex=1)
+nrow(five)
+
+scatter.smooth(six$LONGITUDE, six$LATITUDE, col=six$Col, cex=3, pch=20)
+points(six$LONGITUDE, six$LATITUDE, col=as.numeric(six$Crime.Type)+1, cex=1, pch=20)
+#points(six$LONGITUDE, six$LATITUDE,col=as.numeric(as.factor(weekdays(as.Date(strptime(six$Date, "%m/%d/%Y"))))), cex=1)
+nrow(six)
+
+```
+
