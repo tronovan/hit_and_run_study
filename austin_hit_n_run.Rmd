@@ -9,7 +9,7 @@ I load the data and plot it.   There is a datapoint set to zero which I will rem
 
 
 ```{r}
-apd <- read.csv("~/Data/APD_Incident_Extract_YTD.csv")
+apd <- read.csv("https://data.austintexas.gov/api/views/b4y9-5x39/rows.csv?accessType=DOWNLOAD")
 plot(apd$LONGITUDE, apd$LATITUDE)
 ```
 
